@@ -69,9 +69,34 @@ class FloraCertaApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
+          scrollBehavior: const _NoAnimationScrollBehavior(),
+          builder: (context, child) {
+            if (child == null) {
+              return const SizedBox.shrink();
+            }
+            return SafeArea(top: false, child: child);
+          },
           routerConfig: _router,
         );
       },
     );
+  }
+}
+
+class _NoAnimationScrollBehavior extends MaterialScrollBehavior {
+  const _NoAnimationScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const ClampingScrollPhysics();
   }
 }

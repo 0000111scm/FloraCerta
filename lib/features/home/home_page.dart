@@ -1,13 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/config/app_constants.dart';
 import '../../core/config/app_routes.dart';
 import '../../core/utils/app_spacing.dart';
 import '../../core/widgets/feature_card.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool _requestedStartupPermissions = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_requestedStartupPermissions) {
+      return;
+    }
+    _requestedStartupPermissions = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestStartupPermissions();
+    });
+  }
+
+  Future<void> _requestStartupPermissions() async {
+    final permissions = <Permission>[
+      Permission.notification,
+      Permission.camera,
+      Permission.locationWhenInUse,
+      Permission.photos,
+      Permission.storage,
+    ];
+
+    await permissions.request();
+  }
 
   @override
   Widget build(BuildContext context) {

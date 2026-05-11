@@ -1,145 +1,105 @@
 # FloraCerta
 
-**FloraCerta** é um aplicativo Flutter para identificação, registro e acompanhamento de plantas.
+Aplicativo mobile em Flutter para identificar plantas por foto, registrar localizacao e acompanhar a evolucao das plantas.
 
-O objetivo do projeto é permitir que o usuário identifique plantas por foto ou descrição, consulte informações importantes sobre cada espécie, registre suas próprias plantas e acompanhe cuidados, evolução, saúde e localização de cada registro.
+## Visao geral
 
----
+O FloraCerta foi estruturado por features para evolucao incremental, com foco em:
 
-## Objetivo do App
+- Identificacao de plantas por imagem com API externa.
+- Registro de localizacao (exata, aproximada ou sem localizacao).
+- Historico local de identificacoes.
+- Gestao de plantas pessoais e diario.
+- Diagnostico inicial de doencas e pragas.
 
-Criar uma solução prática para:
+## Funcionalidades implementadas
 
-- Identificar plantas por imagem.
-- Identificar plantas por descrição manual.
-- Exibir informações confiáveis sobre cada espécie.
-- Registrar plantas pessoais do usuário.
-- Acompanhar evolução, cuidados, doenças, pragas e histórico.
-- Salvar localização aproximada das plantas identificadas.
-- Organizar um histórico completo de registros botânicos.
+### Home
+- Navegacao para todas as areas principais.
+- Tema claro, escuro e sistema.
 
----
+### Identificacao
+- Captura por camera.
+- Selecao da galeria.
+- Preview com opcao de remover foto.
+- Dica rapida de captura para melhorar o reconhecimento.
+- Botao de identificar fixo no rodape.
+- Integracao com API externa de identificacao.
+- Tratamento robusto de falhas e casos sem correspondencia.
 
-## Funcionalidades Planejadas
+### Localizacao
+- Captura de latitude e longitude.
+- Conversao para endereco aproximado.
+- Privacidade configuravel:
+  - Nao salvar
+  - Aproximada
+  - Exata
 
-### Identificação de Plantas
+### Historico e Minhas plantas
+- Salvamento local das identificacoes.
+- Filtros basicos no historico.
+- Cadastro manual de plantas.
+- Diario e status de saude.
 
-- Identificação por foto.
-- Identificação por descrição/manual.
-- Exibição do nome popular.
-- Exibição do nome científico.
-- Nível de confiança da identificação.
-- Lista de espécies parecidas.
-- Comparação entre fotos antigas e novas.
+### Diagnostico
+- Formulario estruturado.
+- Resultado de exemplo para evolucao do fluxo.
+- Salvamento no historico da planta.
 
----
-
-### Informações da Planta
-
-O app deverá exibir informações básicas e úteis sobre cada planta, incluindo:
-
-- Necessidade de sol.
-- Frequência de água.
-- Tipo de solo recomendado.
-- Cuidados com poda.
-- Cuidados com adubação.
-- Toxicidade para pets e crianças.
-- Perfil completo da planta.
-- Banco de conhecimento com pragas e doenças comuns.
-
----
-
-### Registro Pessoal de Plantas
-
-O usuário poderá cadastrar suas próprias plantas com:
-
-- Nome/apelido personalizado.
-- Fotos da planta.
-- Diário da planta.
-- Observações manuais.
-- Histórico de evolução.
-- Linha do tempo da planta.
-- Perfil completo individual.
-
----
-
-### Saúde, Doenças e Pragas
-
-O app deverá ajudar no acompanhamento da saúde da planta com:
-
-- Registro de doenças.
-- Registro de pragas.
-- Diagnóstico por IA usando foto ou sintomas.
-- Plano de recuperação da planta.
-- Histórico de tratamentos aplicados.
-- Alertas preventivos baseados em clima/local.
-
----
-
-### Lembretes e Cuidados
-
-O usuário poderá configurar lembretes para:
-
-- Rega.
-- Adubação.
-- Poda.
-- Troca de vaso.
-
----
-
-### Localização e Mapa
-
-O app deverá registrar informações de localização para plantas identificadas ou cadastradas:
-
-- Salvamento da localização aproximada.
-- Data e hora do registro.
-- Exibição das plantas identificadas no mapa.
-- Tela de mapa da flora encontrada.
-- Filtros por espécie, data e local.
-- Controle de privacidade da localização.
-
----
-
-### Histórico e Organização
-
-O app deverá permitir:
-
-- Salvar cada identificação no histórico.
-- Salvar localização exata ou aproximada da identificação.
-- Filtrar registros por espécie.
-- Filtrar registros por data.
-- Filtrar registros por local.
-- Modo offline básico para plantas salvas.
-- Relatório ou linha do tempo da planta.
-
----
-
-## Tecnologias Utilizadas
-
-- **Flutter**
-- **Dart**
-- Estrutura preparada para uso futuro de:
-  - Banco de dados local.
-  - Geolocalização.
-  - Mapa.
-  - Câmera.
-  - Integração com IA.
-  - API de identificação de plantas.
-
----
-
-## Estrutura Inicial do Projeto
+## Estrutura do projeto
 
 ```text
-floracerta/
-├── lib/
-│   ├── main.dart
-│   ├── app/
-│   ├── models/
-│   ├── screens/
-│   ├── services/
-│   ├── widgets/
-│   └── utils/
-├── assets/
-├── pubspec.yaml
-└── README.md
+lib/
+├── app.dart
+├── main.dart
+├── core/
+│   ├── config/
+│   ├── theme/
+│   ├── utils/
+│   └── widgets/
+├── features/
+│   ├── home/
+│   ├── identification/
+│   ├── history/
+│   ├── map/
+│   ├── my_plants/
+│   ├── diagnosis/
+│   └── settings/
+└── services/
+```
+
+## Configuracao de ambiente
+
+Crie ou atualize o arquivo `.env` na raiz:
+
+```env
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+PLANT_ID_API_URL=https://my-api.plantnet.org/v2/identify/all
+PLANT_ID_API_KEY=sua_chave
+```
+
+## Como rodar localmente
+
+```bash
+flutter pub get
+flutter analyze
+flutter run
+```
+
+## Gerar APK
+
+```bash
+flutter build apk
+```
+
+Saida padrao:
+
+`build/app/outputs/flutter-apk/app-release.apk`
+
+## Roadmap tecnico
+
+- Integrar Supabase (autenticacao e persistencia remota).
+- Integrar mapa real com marcadores.
+- Evoluir identificacao e diagnostico com IA real.
+- Melhorar ainda mais tratamento de erro e estados de carregamento.

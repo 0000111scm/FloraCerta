@@ -50,6 +50,7 @@ class _ResultPageState extends State<ResultPage> {
     final result = args.result;
     final confidenceText = '${(result.confidence * 100).toStringAsFixed(0)}%';
     final confidenceProgress = result.confidence.clamp(0, 1);
+    final isValidIdentification = result.confidence > 0.01;
 
     return Scaffold(
       appBar: buildFloraAppBar(context, title: 'Resultado da identificacao'),
@@ -78,6 +79,15 @@ class _ResultPageState extends State<ResultPage> {
               fontStyle: FontStyle.italic,
             ),
           ),
+          if (result.sourceLabel != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Fonte: ${result.sourceLabel}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           AppSpacing.itemGap,
           Card(
             child: Padding(
@@ -94,7 +104,7 @@ class _ResultPageState extends State<ResultPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Confianca estimada do exemplo: $confidenceText',
+                          'Confianca estimada: $confidenceText',
                           style: theme.textTheme.titleMedium,
                         ),
                       ),
@@ -163,6 +173,12 @@ class _ResultPageState extends State<ResultPage> {
           ),
           AppSpacing.itemGap,
           _SectionCard(title: 'Toxicidade', child: Text(result.toxicity)),
+          AppSpacing.itemGap,
+          OutlinedButton.icon(
+            onPressed: () => _showMoreInformation(context, args),
+            icon: const Icon(Icons.menu_book_rounded),
+            label: const Text('Mais informacoes da planta'),
+          ),
           if (args.locationPrivacyMode != LocationPrivacyMode.none) ...[
             AppSpacing.itemGap,
             _SectionCard(
@@ -172,17 +188,25 @@ class _ResultPageState extends State<ResultPage> {
           ],
           AppSpacing.sectionGap,
           ElevatedButton.icon(
-            onPressed: _hasSaved ? null : () => _saveIdentification(args),
+            onPressed: _hasSaved || !isValidIdentification
+                ? null
+                : () => _saveIdentification(args),
             icon: Icon(
               _hasSaved ? Icons.check_circle_outline : Icons.save_outlined,
             ),
             label: Text(
-              _hasSaved ? 'Identificacao salva' : 'Salvar identificacao',
+              _hasSaved
+                  ? 'Identificacao salva'
+                  : isValidIdentification
+                  ? 'Salvar identificacao'
+                  : 'Salvar desativado',
             ),
           ),
           AppSpacing.itemGap,
           OutlinedButton.icon(
-            onPressed: _addedToMyPlants ? null : () => _addToMyPlants(args),
+            onPressed: _addedToMyPlants || !isValidIdentification
+                ? null
+                : () => _addToMyPlants(args),
             icon: Icon(
               _addedToMyPlants
                   ? Icons.check_circle_outline
@@ -191,12 +215,123 @@ class _ResultPageState extends State<ResultPage> {
             label: Text(
               _addedToMyPlants
                   ? 'Adicionada em Minhas plantas'
-                  : 'Adicionar as minhas plantas',
+                  : isValidIdentification
+                  ? 'Adicionar as minhas plantas'
+                  : 'Adicionar desativado',
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _showMoreInformation(
+    BuildContext context,
+    PlantIdentificationResultArgs args,
+  ) {
+    final result = args.result;
+    final confidence = (result.confidence * 100).toStringAsFixed(0);
+    final confidenceLevel = result.confidence >= 0.8
+        ? 'Alta'
+        : result.confidence >= 0.55
+        ? 'Media'
+        : 'Baixa';
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ficha detalhada',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${result.popularName} (${result.scientificName})',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  AppSpacing.sectionGap,
+                  _DetailLine(label: 'Confianca', value: '$confidence%'),
+                  _DetailLine(label: 'Nivel', value: confidenceLevel),
+                  _DetailLine(
+                    label: 'Origem dos dados',
+                    value: result.sourceLabel ?? 'Nao informado',
+                  ),
+                  if (args.userDescription.isNotEmpty)
+                    _DetailLine(
+                      label: 'Descricao enviada por voce',
+                      value: args.userDescription,
+                    ),
+                  AppSpacing.sectionGap,
+                  Text(
+                    'Leitura de confiabilidade',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _buildConfidenceGuide(result.confidence),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  AppSpacing.sectionGap,
+                  Text(
+                    'Como aumentar a precisao',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '- Fotografe folha ou flor ocupando boa parte da imagem.\n'
+                    '- Evite fundo poluido e baixa luz.\n'
+                    '- Tire 2 ou 3 fotos por angulos diferentes e compare.\n'
+                    '- Foque em detalhes (nervuras, bordas, textura).',
+                  ),
+                  AppSpacing.sectionGap,
+                  Text(
+                    'Cuidados resumidos',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailLine(label: 'Luz', value: result.light),
+                  _DetailLine(label: 'Agua', value: result.water),
+                  _DetailLine(label: 'Solo', value: result.soil),
+                  _DetailLine(label: 'Poda', value: result.pruning),
+                  _DetailLine(label: 'Adubacao', value: result.fertilization),
+                  _DetailLine(label: 'Toxicidade', value: result.toxicity),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _buildConfidenceGuide(double confidence) {
+    if (confidence >= 0.8) {
+      return 'Confianca alta. Ainda assim, valide visualmente antes de qualquer manejo.';
+    }
+    if (confidence >= 0.55) {
+      return 'Confianca media. Recomendado repetir o scan com foto mais focada para confirmar.';
+    }
+    return 'Confianca baixa. Trate como indicacao inicial e refaca a captura em melhores condicoes.';
   }
 
   void _saveIdentification(PlantIdentificationResultArgs args) {
@@ -278,7 +413,7 @@ class _ResultPageState extends State<ResultPage> {
       description: result.description,
       photoBytes: args.imageBytes,
       identifiedAt: location?.capturedAt ?? DateTime.now(),
-      notes: 'Resultado mockado salvo localmente para evolucao do fluxo.',
+      notes: 'Resultado de identificacao salvo localmente.',
       saveExactLocation: args.locationPrivacyMode == LocationPrivacyMode.exact,
       locationPrivacyMode: args.locationPrivacyMode,
       latitude: args.locationPrivacyMode == LocationPrivacyMode.exact
@@ -356,6 +491,33 @@ class _CareLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: RichText(
+        text: TextSpan(
+          style: theme.textTheme.bodyMedium,
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailLine extends StatelessWidget {
+  const _DetailLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: RichText(

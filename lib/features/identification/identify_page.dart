@@ -146,6 +146,13 @@ class _IdentifyPageState extends State<IdentifyPage> {
     if (imageBytes == null || selectedImage == null) {
       return;
     }
+    final validationMessage = _validateImageForScan(imageBytes);
+    if (validationMessage != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(validationMessage)));
+      return;
+    }
 
     setState(() {
       _isIdentifying = true;
@@ -161,12 +168,6 @@ class _IdentifyPageState extends State<IdentifyPage> {
 
       if (!mounted) {
         return;
-      }
-
-      if (result.disclaimer != null && result.disclaimer!.isNotEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(result.disclaimer!)));
       }
 
       context.push(
@@ -203,6 +204,14 @@ class _IdentifyPageState extends State<IdentifyPage> {
     }
   }
 
+  String? _validateImageForScan(Uint8List imageBytes) {
+    // Evita envio de imagem muito pequena/comprimida demais, que tende a falhar no reconhecimento.
+    if (imageBytes.length < 30 * 1024) {
+      return 'Imagem muito pequena para identificar com confianca. Tente uma foto mais nitida e aproximada da planta.';
+    }
+    return null;
+  }
+
   void _setLocationPrivacyMode(LocationPrivacyMode mode) {
     setState(() {
       _locationPrivacyMode = mode;
@@ -221,6 +230,20 @@ class _IdentifyPageState extends State<IdentifyPage> {
 
     return Scaffold(
       appBar: buildFloraAppBar(context, title: 'Identificar planta'),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        child: ElevatedButton.icon(
+          onPressed: hasImage && !_isIdentifying ? _identifyPlant : null,
+          icon: _isIdentifying
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.search_rounded),
+          label: Text(_isIdentifying ? 'Processando...' : 'Identificar planta'),
+        ),
+      ),
       body: ListView(
         padding: AppSpacing.pagePadding,
         children: [
@@ -232,9 +255,36 @@ class _IdentifyPageState extends State<IdentifyPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'A integracao com API sera conectada depois. Esta tela prepara o fluxo visual.',
+            'Use camera ou galeria para identificar a planta pela API e salvar o resultado localmente.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.tips_and_updates_outlined,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Dica rapida: foque na folha ou flor, boa luz, sem objetos no fundo e aproxime a camera.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           AppSpacing.sectionGap,
@@ -314,20 +364,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
             ),
             child: _buildPreview(theme),
           ),
-          AppSpacing.sectionGap,
-          ElevatedButton.icon(
-            onPressed: hasImage && !_isIdentifying ? _identifyPlant : null,
-            icon: _isIdentifying
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.search_rounded),
-            label: Text(
-              _isIdentifying ? 'Processando...' : 'Identificar planta',
-            ),
-          ),
+          const SizedBox(height: 90),
         ],
       ),
     );
@@ -466,6 +503,22 @@ class _IdentifyPageState extends State<IdentifyPage> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: IconButton.filled(
+                tooltip: 'Remover foto',
+                onPressed: _isIdentifying
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedImage = null;
+                          _selectedImageBytes = null;
+                        });
+                      },
+                icon: const Icon(Icons.close_rounded),
               ),
             ),
           ],
