@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../features/diagnosis/models/plant_problem.dart';
 import '../features/identification/models/plant_identification.dart';
+import '../features/identification/models/scan_training_sample.dart';
 import '../features/my_plants/models/plant_log.dart';
 import '../features/my_plants/models/user_plant.dart';
 
@@ -19,6 +20,8 @@ class StorageService {
   );
   final ValueNotifier<List<PlantProblem>> plantProblems =
       ValueNotifier<List<PlantProblem>>(<PlantProblem>[]);
+  final ValueNotifier<List<ScanTrainingSample>> scanSamples =
+      ValueNotifier<List<ScanTrainingSample>>(<ScanTrainingSample>[]);
 
   void saveIdentification(PlantIdentification identification) {
     final updated = List<PlantIdentification>.from(identifications.value)
@@ -97,6 +100,12 @@ class StorageService {
         .where((item) => item.id != plantProblemId)
         .toList();
     plantProblems.value = updated;
+  }
+
+  void saveScanSamples(List<ScanTrainingSample> samples) {
+    final updated = List<ScanTrainingSample>.from(scanSamples.value)
+      ..insertAll(0, samples);
+    scanSamples.value = updated;
   }
 
   UserPlant? findUserPlantById(String id) {

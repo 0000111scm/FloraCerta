@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../features/diagnosis/models/plant_problem.dart';
 import '../features/identification/models/plant_identification.dart';
+import '../features/identification/models/scan_training_sample.dart';
 import '../features/my_plants/models/plant_log.dart';
 import '../features/my_plants/models/user_plant.dart';
 import 'local_persistence_service.dart';
@@ -28,6 +29,8 @@ class AppDataRepository {
 
   ValueListenable<List<PlantProblem>> get plantProblemsListenable =>
       _storageService.plantProblems;
+  ValueListenable<List<ScanTrainingSample>> get scanSamplesListenable =>
+      _storageService.scanSamples;
 
   bool get isUsingPersistentLocalStorage => true;
 
@@ -41,6 +44,7 @@ class AppDataRepository {
     _storageService.userPlants.value = snapshot.userPlants;
     _storageService.plantLogs.value = snapshot.plantLogs;
     _storageService.plantProblems.value = snapshot.plantProblems;
+    _storageService.scanSamples.value = snapshot.scanSamples;
     _initialized = true;
   }
 
@@ -114,6 +118,11 @@ class AppDataRepository {
     _persistPlantProblems();
   }
 
+  void saveScanSamples(List<ScanTrainingSample> samples) {
+    _storageService.saveScanSamples(samples);
+    _persistScanSamples();
+  }
+
   UserPlant? findUserPlantById(String id) {
     return _storageService.findUserPlantById(id);
   }
@@ -144,5 +153,9 @@ class AppDataRepository {
     _localPersistenceService.savePlantProblems(
       _storageService.plantProblems.value,
     );
+  }
+
+  void _persistScanSamples() {
+    _localPersistenceService.saveScanSamples(_storageService.scanSamples.value);
   }
 }

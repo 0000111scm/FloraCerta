@@ -7,12 +7,15 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/config/app_routes.dart';
 import '../../core/utils/app_spacing.dart';
 import '../../core/widgets/flora_app_bar.dart';
+import '../../services/app_data_repository.dart';
 import '../../services/image_picker_service.dart';
 import '../../services/location_service.dart';
 import '../../services/plant_identification_service.dart';
 import 'models/identification_location.dart';
 import 'models/location_privacy_mode.dart';
 import 'models/plant_identification_result_args.dart';
+import 'models/plant_identification_result.dart';
+import 'models/scan_training_sample.dart';
 
 class IdentifyPage extends StatefulWidget {
   const IdentifyPage({super.key});
@@ -29,6 +32,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
   final LocationService _locationService = const LocationService();
   final PlantIdentificationService _plantIdentificationService =
       const PlantIdentificationService();
+  final AppDataRepository _repository = AppDataRepository.instance;
   final TextEditingController _descriptionController = TextEditingController();
 
   LocationPrivacyMode _locationPrivacyMode = LocationPrivacyMode.approximate;
@@ -217,25 +221,24 @@ class _IdentifyPageState extends State<IdentifyPage> {
     try {
       final description = _descriptionController.text.trim();
       final normalizedDescription = description.isEmpty ? null : description;
-
-      var bestIndex = 0;
-      var bestResult = await _plantIdentificationService.identifyPlant(
-        imageBytes: _selectedImageBytes[0],
-        imageName: _selectedImages[0].name,
-        description: normalizedDescription,
-      );
-
-      for (var i = 1; i < _selectedImages.length; i++) {
-        final currentResult = await _plantIdentificationService.identifyPlant(
-          imageBytes: _selectedImageBytes[i],
-          imageName: _selectedImages[i].name,
-          description: normalizedDescription,
+      final perPhotoResults = <PlantIdentificationResult>[];
+      for (var i = 0; i < _selectedImages.length; i++) {
+        perPhotoResults.add(
+          await _plantIdentificationService.identifyPlant(
+            imageBytes: _selectedImageBytes[i],
+            imageName: _selectedImages[i].name,
+            description: normalizedDescription,
+          ),
         );
-        if (currentResult.confidence > bestResult.confidence) {
-          bestResult = currentResult;
-          bestIndex = i;
-        }
       }
+      final consensus = _selectConsensusResult(perPhotoResults);
+      final bestIndex = consensus.index;
+      final bestResult = consensus.result;
+      _persistScanSamples(
+        results: perPhotoResults,
+        primaryIndex: bestIndex,
+        userDescription: normalizedDescription,
+      );
 
       if (!mounted) {
         return;
@@ -272,6 +275,75 @@ class _IdentifyPageState extends State<IdentifyPage> {
         });
       }
     }
+  }
+
+  ({PlantIdentificationResult result, int index}) _selectConsensusResult(
+    List<PlantIdentificationResult> results,
+  ) {
+    if (results.length == 1) {
+      return (result: results.first, index: 0);
+    }
+
+    final buckets = <String, List<int>>{};
+    for (var i = 0; i < results.length; i++) {
+      final key = results[i].scientificName.trim().toLowerCase();
+      buckets.putIfAbsent(key, () => <int>[]).add(i);
+    }
+
+    String? bestKey;
+    var bestCount = -1;
+    var bestAvg = -1.0;
+    for (final entry in buckets.entries) {
+      var sum = 0.0;
+      for (final idx in entry.value) {
+        sum += results[idx].confidence;
+      }
+      final avg = entry.value.isEmpty ? 0.0 : sum / entry.value.length;
+      if (entry.value.length > bestCount ||
+          (entry.value.length == bestCount && avg > bestAvg)) {
+        bestCount = entry.value.length;
+        bestAvg = avg;
+        bestKey = entry.key;
+      }
+    }
+
+    final winnerIndexes = buckets[bestKey] ?? const <int>[];
+    var chosenIndex = winnerIndexes.isNotEmpty ? winnerIndexes.first : 0;
+    for (final idx in winnerIndexes) {
+      if (results[idx].confidence > results[chosenIndex].confidence) {
+        chosenIndex = idx;
+      }
+    }
+
+    return (result: results[chosenIndex], index: chosenIndex);
+  }
+
+  void _persistScanSamples({
+    required List<PlantIdentificationResult> results,
+    required int primaryIndex,
+    required String? userDescription,
+  }) {
+    final samples = <ScanTrainingSample>[];
+    final now = DateTime.now();
+    for (var i = 0; i < results.length; i++) {
+      final result = results[i];
+      samples.add(
+        ScanTrainingSample(
+          id: '${now.microsecondsSinceEpoch}_$i',
+          imageBytes: _selectedImageBytes[i],
+          capturedAt: now,
+          predictedPopularName: result.popularName,
+          predictedScientificName: result.scientificName,
+          confidence: result.confidence,
+          isPrimarySelection: i == primaryIndex,
+          sourceLabel: result.sourceLabel,
+          userDescription: userDescription,
+          city: _currentLocation?.city,
+          state: _currentLocation?.state,
+        ),
+      );
+    }
+    _repository.saveScanSamples(samples);
   }
 
   String? _validateImageForScan(Uint8List imageBytes) {
