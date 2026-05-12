@@ -6,10 +6,30 @@ class ImagePickerService {
   final ImagePicker _picker;
 
   Future<XFile?> pickFromCamera() {
-    return _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+    return _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 95,
+      maxWidth: 2048,
+      maxHeight: 2048,
+    );
   }
 
   Future<XFile?> pickFromGallery() {
-    return _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    return _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 95,
+      maxWidth: 2048,
+      maxHeight: 2048,
+    );
+  }
+
+  Future<List<XFile>> pickMultipleFromGallery({int maxImages = 5}) async {
+    final files = await _picker.pickMultiImage(
+      imageQuality: 95,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      limit: maxImages,
+    );
+    return files;
   }
 }

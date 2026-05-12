@@ -1,0 +1,194 @@
+FloraCerta - Guia de Publicacao na Play Store (Teste Interno + Preparacao)
+Data: 12/05/2026
+
+==================================================
+1) PASSO A PASSO - PLAY CONSOLE (ATE TESTE INTERNO)
+==================================================
+
+1. Abra no navegador:
+https://play.google.com/console
+
+2. Faça login com sua conta Google de desenvolvedor.
+
+3. Se for o primeiro acesso:
+- Aceite os termos.
+- Pague a taxa unica da conta de desenvolvedor (se ainda nao tiver pago).
+- Complete o perfil da conta.
+
+4. Na tela inicial do Console:
+- Clique em "Criar app" (se FloraCerta ainda nao existir),
+ou
+- Clique no app "FloraCerta" (se ja existir).
+
+5. Criar app (caso novo):
+- Nome: FloraCerta
+- Idioma padrao: Portugues (Brasil)
+- Tipo: App
+- Gratuito/Pago: Gratuito (recomendado para inicio)
+- Marque as declaracoes
+- Clique em "Criar app"
+
+6. No menu esquerdo:
+Teste -> Teste interno
+
+7. Em Teste interno:
+- Clique em "Criar nova versao"
+- Em "Pacotes de app", clique em "Upload"
+- Envie o arquivo:
+build/app/outputs/bundle/release/app-release.aab
+
+8. Preencha "Notas da versao" (exemplo):
+"Versao 3.0.1: melhorias no scan com ate 5 fotos, novo icone, ajustes visuais e reforco de seguranca."
+
+9. Clique em:
+- Salvar
+- Revisar versao
+
+10. Configurar testadores:
+- Ainda em Teste interno, abra "Testadores"
+- Adicione emails Google dos testadores (ou Grupo Google)
+- Salve
+
+11. Publicar teste interno:
+- Volte para a release
+- Clique em "Iniciar lancamento para teste interno"
+
+12. Link de convite:
+- Pegue o "Link para testadores" na pagina da faixa interna
+- Envie para os testadores
+- O testador abre o link, aceita participar e instala pela Play Store
+
+Observacoes importantes:
+- O testador precisa usar na Play a mesma conta Google cadastrada.
+- Para Play Store, use AAB (nao APK).
+- Atualizacoes futuras vao pela Play automaticamente.
+
+==================================================
+2) TEXTO INICIAL - DATA SAFETY (BASE)
+==================================================
+
+ATENCAO:
+Este texto e base inicial. Preencha no Console conforme o comportamento real final.
+Nao marque coleta/compartilhamento se nao acontecer de fato.
+
+Base sugerida para estado atual:
+
+- Coleta de dados pessoais:
+  - Localizacao (opcional, somente quando usuario ativa no fluxo de identificacao).
+  - Fotos/imagens (enviadas pelo usuario para identificacao de plantas).
+
+- Dados compartilhados com terceiros:
+  - Sim, quando necessario para identificacao de plantas via servico externo (idealmente via backend relay).
+
+- Finalidade:
+  - Funcionalidade do app (identificacao da planta).
+  - Melhor experiencia do usuario (historico e contexto da identificacao).
+
+- Processamento no dispositivo:
+  - Parte dos dados e armazenada localmente para historico e colecao.
+
+- Criptografia em transito:
+  - Sim (HTTPS).
+
+- Exclusao de dados:
+  - Usuario pode apagar registros locais no app.
+
+==================================================
+3) DESCRICAO CURTA E LONGA (LOJA)
+==================================================
+
+Descricao curta (ate 80 caracteres):
+Identifique plantas por foto, salve localizacao e acompanhe sua colecao.
+
+Descricao longa:
+FloraCerta e um app para identificar plantas por foto e organizar sua jornada de cultivo.
+
+Com ele voce pode:
+- Identificar plantas usando 1 a 5 fotos por analise.
+- Registrar localizacao da identificacao (exata, aproximada ou nao salvar).
+- Salvar historico de identificacoes com imagem e detalhes.
+- Montar sua colecao em "Minhas plantas".
+- Acompanhar status e observacoes de cada planta.
+- Registrar sintomas e diagnosticos iniciais para doencas/pragas.
+
+Destaques:
+- Interface em portugues (Brasil), limpa e facil de usar.
+- Tema claro e escuro.
+- Fluxo pensado para uso real no dia a dia.
+
+Privacidade:
+- Permissoes sao usadas para funcionalidades do app (camera, localizacao e internet).
+- O usuario controla quando compartilhar localizacao.
+
+==================================================
+4) CHECKLIST DOS TESTADORES (TESTE INTERNO)
+==================================================
+
+Objetivo: validar estabilidade e fluxo principal antes de producao.
+
+Checklist por testador:
+
+1. Instalacao
+- Entrar no link de teste interno
+- Instalar pela Play Store
+- Confirmar que abriu sem travar
+
+2. Permissoes
+- Testar camera permitida/negada
+- Testar localizacao permitida/negada
+- Validar mensagens de orientacao
+
+3. Identificacao
+- Testar com 1 foto
+- Testar com 5 fotos
+- Testar camera e galeria
+- Validar botao de remover/trocar foto
+- Validar que sem foto nao identifica
+
+4. Qualidade do resultado
+- Conferir se mostra confianca
+- Abrir "Mais informacoes da planta"
+- Verificar se layout esta legivel e sem cortes
+
+5. Localizacao
+- Capturar localizacao
+- Validar modo aproximado/exato/nao salvar
+- Verificar precisao estimada exibida
+
+6. Historico / Minhas plantas
+- Salvar identificacao
+- Adicionar em Minhas plantas
+- Conferir miniatura da foto no card
+
+7. Diagnostico
+- Registrar sintomas
+- Gerar diagnostico de exemplo
+- Salvar registro
+
+8. Tema e navegacao
+- Alternar claro/escuro
+- Testar voltar por seta e botao do celular
+
+9. Bugs
+Se houver falha, registrar:
+- aparelho/modelo
+- versao Android
+- passo a passo
+- print/video
+
+Critério de aprovacao para subir producao:
+- 0 crash
+- 0 bloqueio de fluxo principal
+- 0 erro critico de permissao sem recuperacao
+- resultado consistente em uso real
+
+==================================================
+5) ARQUIVOS IMPORTANTES
+==================================================
+
+AAB para Play Store:
+build/app/outputs/bundle/release/app-release.aab
+
+APK para teste manual:
+build/app/outputs/flutter-apk/app-release.apk
+

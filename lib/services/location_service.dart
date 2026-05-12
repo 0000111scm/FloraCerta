@@ -38,7 +38,8 @@ class LocationService {
       );
     }
 
-    final position = await Geolocator.getCurrentPosition();
+    final position = await _resolveBestPosition();
+
     final placemarks = await placemarkFromCoordinates(
       position.latitude,
       position.longitude,
@@ -48,6 +49,7 @@ class LocationService {
     return IdentificationLocation(
       latitude: position.latitude,
       longitude: position.longitude,
+      accuracyMeters: position.accuracy,
       addressText: _buildAddressText(placemark),
       city: placemark?.subAdministrativeArea?.trim().isNotEmpty == true
           ? placemark!.subAdministrativeArea!.trim()
@@ -57,6 +59,52 @@ class LocationService {
           : 'Estado nao identificado',
       capturedAt: DateTime.now(),
     );
+  }
+
+  Future<Position> _resolveBestPosition() async {
+    Position? best = await Geolocator.getLastKnownPosition();
+
+    try {
+      final current = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          timeLimit: Duration(seconds: 20),
+        ),
+      );
+      best = _pickBestAccuracy(best, current);
+    } catch (_) {
+      // Continua para tentativa por stream.
+    }
+
+    try {
+      final streamBest = await Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 0,
+        ),
+      ).where((item) => item.accuracy > 0).take(3).reduce(_pickBestPair);
+      best = _pickBestAccuracy(best, streamBest);
+    } catch (_) {
+      // Fallback para melhor dado ja obtido.
+    }
+
+    if (best == null) {
+      throw const LocationServiceException(
+        'Nao foi possivel obter localizacao no momento. Ative o GPS e tente novamente.',
+      );
+    }
+    return best;
+  }
+
+  Position _pickBestPair(Position a, Position b) {
+    return a.accuracy <= b.accuracy ? a : b;
+  }
+
+  Position _pickBestAccuracy(Position? current, Position next) {
+    if (current == null) {
+      return next;
+    }
+    return current.accuracy <= next.accuracy ? current : next;
   }
 
   String _buildAddressText(Placemark? placemark) {

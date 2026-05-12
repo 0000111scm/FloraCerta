@@ -5,4 +5,6 @@ abstract final class AppConstants {
   static const supabaseAnonKey = 'SUPABASE_ANON_KEY';
   static const plantIdentificationApiUrlKey = 'PLANT_ID_API_URL';
   static const plantIdentificationApiKey = 'PLANT_ID_API_KEY';
+  static const plantIdentificationRelayUrlKey = 'PLANT_ID_RELAY_URL';
+  static const allowClientSidePlantKey = 'ALLOW_CLIENT_SIDE_PLANT_KEY';
 }

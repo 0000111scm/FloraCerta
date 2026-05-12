@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppTheme {
-  static const _seedColor = Color(0xFF2E7D32);
+  static const _seedColor = Color(0xFF2FAE48);
 
   static ThemeData get lightTheme {
     return _buildTheme(Brightness.light);
@@ -16,17 +16,19 @@ abstract final class AppTheme {
       seedColor: _seedColor,
       brightness: brightness,
     );
+    final isDark = brightness == Brightness.dark;
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: brightness == Brightness.light
-          ? const Color(0xFFF5F8F2)
-          : const Color(0xFF0F1510),
+      scaffoldBackgroundColor: isDark
+          ? const Color(0xFF090C0A)
+          : const Color(0xFFF2F7F1),
+      dividerColor: isDark ? const Color(0xFF213127) : const Color(0xFFD5E2D2),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
-        backgroundColor: colorScheme.surface,
+        backgroundColor: isDark ? const Color(0xFF101613) : colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
         titleTextStyle: TextStyle(
           fontSize: 22,
@@ -36,15 +38,21 @@ abstract final class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: colorScheme.surface,
+        color: isDark ? const Color(0xFF141917) : colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: colorScheme.outlineVariant),
+          side: BorderSide(
+            color: isDark
+                ? const Color(0xFF2C4C33)
+                : colorScheme.outlineVariant,
+          ),
         ),
         margin: EdgeInsets.zero,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
+          backgroundColor: isDark ? const Color(0xFF3BAF4D) : null,
+          foregroundColor: isDark ? const Color(0xFF071209) : null,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
@@ -54,6 +62,10 @@ abstract final class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          side: BorderSide(
+            color: isDark ? const Color(0xFF85FF5A) : colorScheme.outline,
+            width: 1.3,
+          ),
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),

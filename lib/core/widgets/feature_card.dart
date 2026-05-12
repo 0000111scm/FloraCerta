@@ -30,10 +30,17 @@ class FeatureCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
+                  color: theme.brightness == Brightness.dark
+                      ? const Color(0xFF1E3023)
+                      : theme.colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: theme.colorScheme.onPrimaryContainer),
+                child: Icon(
+                  icon,
+                  color: theme.brightness == Brightness.dark
+                      ? const Color(0xFFB8FF66)
+                      : theme.colorScheme.onPrimaryContainer,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(

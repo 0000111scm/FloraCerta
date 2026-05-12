@@ -22,6 +22,9 @@ class IdentifyPage extends StatefulWidget {
 }
 
 class _IdentifyPageState extends State<IdentifyPage> {
+  static const int _maxPhotos = 5;
+  static const int _maxPhotoSizeBytes = 12 * 1024 * 1024;
+
   final ImagePickerService _imagePickerService = ImagePickerService();
   final LocationService _locationService = const LocationService();
   final PlantIdentificationService _plantIdentificationService =
@@ -29,8 +32,8 @@ class _IdentifyPageState extends State<IdentifyPage> {
   final TextEditingController _descriptionController = TextEditingController();
 
   LocationPrivacyMode _locationPrivacyMode = LocationPrivacyMode.approximate;
-  XFile? _selectedImage;
-  Uint8List? _selectedImageBytes;
+  final List<XFile> _selectedImages = [];
+  final List<Uint8List> _selectedImageBytes = [];
   bool _isLoadingImage = false;
   bool _isLoadingLocation = false;
   bool _isIdentifying = false;
@@ -45,35 +48,86 @@ class _IdentifyPageState extends State<IdentifyPage> {
   }
 
   Future<void> _pickImage(Future<XFile?> Function() pickerAction) async {
+    if (_selectedImages.length >= _maxPhotos) {
+      _showLimitMessage();
+      return;
+    }
+
     setState(() {
       _isLoadingImage = true;
     });
 
     try {
       final selectedImage = await pickerAction();
-
       if (selectedImage == null) {
         return;
       }
-
       final imageBytes = await selectedImage.readAsBytes();
 
       if (!mounted) {
         return;
       }
-
       setState(() {
-        _selectedImage = selectedImage;
-        _selectedImageBytes = imageBytes;
+        _selectedImages.add(selectedImage);
+        _selectedImageBytes.add(imageBytes);
       });
     } catch (_) {
       if (!mounted) {
         return;
       }
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Nao foi possivel carregar a imagem. Tente novamente.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingImage = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickMultipleFromGallery() async {
+    final remainingSlots = _maxPhotos - _selectedImages.length;
+    if (remainingSlots <= 0) {
+      _showLimitMessage();
+      return;
+    }
+
+    setState(() {
+      _isLoadingImage = true;
+    });
+
+    try {
+      final selectedFiles = await _imagePickerService.pickMultipleFromGallery(
+        maxImages: remainingSlots,
+      );
+      if (selectedFiles.isEmpty) {
+        return;
+      }
+
+      final newBytes = <Uint8List>[];
+      final limited = selectedFiles.take(remainingSlots).toList();
+      for (final file in limited) {
+        newBytes.add(await file.readAsBytes());
+      }
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _selectedImages.addAll(limited);
+        _selectedImageBytes.addAll(newBytes);
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nao foi possivel carregar as imagens da galeria.'),
         ),
       );
     } finally {
@@ -92,7 +146,6 @@ class _IdentifyPageState extends State<IdentifyPage> {
 
     try {
       final location = await _locationService.getCurrentLocation();
-
       if (!mounted) {
         return;
       }
@@ -107,10 +160,9 @@ class _IdentifyPageState extends State<IdentifyPage> {
       if (!mounted) {
         return;
       }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
       setState(() {
         _locationStatusMessage = error.message;
         _locationStatusIsError = true;
@@ -119,7 +171,6 @@ class _IdentifyPageState extends State<IdentifyPage> {
       if (!mounted) {
         return;
       }
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Nao foi possivel obter a localizacao agora.'),
@@ -140,18 +191,23 @@ class _IdentifyPageState extends State<IdentifyPage> {
   }
 
   Future<void> _identifyPlant() async {
-    final imageBytes = _selectedImageBytes;
-    final selectedImage = _selectedImage;
-
-    if (imageBytes == null || selectedImage == null) {
+    if (_selectedImages.isEmpty || _selectedImageBytes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Adicione pelo menos 1 foto para identificar a planta.'),
+        ),
+      );
       return;
     }
-    final validationMessage = _validateImageForScan(imageBytes);
-    if (validationMessage != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(validationMessage)));
-      return;
+
+    for (final bytes in _selectedImageBytes) {
+      final validationMessage = _validateImageForScan(bytes);
+      if (validationMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validationMessage)),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -160,11 +216,26 @@ class _IdentifyPageState extends State<IdentifyPage> {
 
     try {
       final description = _descriptionController.text.trim();
-      final result = await _plantIdentificationService.identifyPlant(
-        imageBytes: imageBytes,
-        imageName: selectedImage.name,
-        description: description.isEmpty ? null : description,
+      final normalizedDescription = description.isEmpty ? null : description;
+
+      var bestIndex = 0;
+      var bestResult = await _plantIdentificationService.identifyPlant(
+        imageBytes: _selectedImageBytes[0],
+        imageName: _selectedImages[0].name,
+        description: normalizedDescription,
       );
+
+      for (var i = 1; i < _selectedImages.length; i++) {
+        final currentResult = await _plantIdentificationService.identifyPlant(
+          imageBytes: _selectedImageBytes[i],
+          imageName: _selectedImages[i].name,
+          description: normalizedDescription,
+        );
+        if (currentResult.confidence > bestResult.confidence) {
+          bestResult = currentResult;
+          bestIndex = i;
+        }
+      }
 
       if (!mounted) {
         return;
@@ -173,9 +244,9 @@ class _IdentifyPageState extends State<IdentifyPage> {
       context.push(
         AppRoutes.identifyResult,
         extra: PlantIdentificationResultArgs(
-          imageBytes: imageBytes,
-          imageName: selectedImage.name,
-          result: result,
+          imageBytes: _selectedImageBytes[bestIndex],
+          imageName: _selectedImages[bestIndex].name,
+          result: bestResult,
           locationPrivacyMode: _locationPrivacyMode,
           userDescription: description,
           location: _locationPrivacyMode == LocationPrivacyMode.none
@@ -187,7 +258,6 @@ class _IdentifyPageState extends State<IdentifyPage> {
       if (!mounted) {
         return;
       }
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -205,9 +275,11 @@ class _IdentifyPageState extends State<IdentifyPage> {
   }
 
   String? _validateImageForScan(Uint8List imageBytes) {
-    // Evita envio de imagem muito pequena/comprimida demais, que tende a falhar no reconhecimento.
     if (imageBytes.length < 30 * 1024) {
-      return 'Imagem muito pequena para identificar com confianca. Tente uma foto mais nitida e aproximada da planta.';
+      return 'Uma das fotos esta muito pequena para identificar com confianca. Tente uma foto mais nitida.';
+    }
+    if (imageBytes.length > _maxPhotoSizeBytes) {
+      return 'Uma das fotos esta muito grande. Use imagens de ate 12 MB.';
     }
     return null;
   }
@@ -223,10 +295,28 @@ class _IdentifyPageState extends State<IdentifyPage> {
     });
   }
 
+  void _removeImageAt(int index) {
+    if (index < 0 || index >= _selectedImages.length) {
+      return;
+    }
+    setState(() {
+      _selectedImages.removeAt(index);
+      _selectedImageBytes.removeAt(index);
+    });
+  }
+
+  void _showLimitMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Voce pode adicionar no maximo 5 fotos por identificacao.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasImage = _selectedImageBytes != null;
+    final hasImage = _selectedImageBytes.isNotEmpty;
 
     return Scaffold(
       appBar: buildFloraAppBar(context, title: 'Identificar planta'),
@@ -255,12 +345,20 @@ class _IdentifyPageState extends State<IdentifyPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Use camera ou galeria para identificar a planta pela API e salvar o resultado localmente.',
+            'Use camera ou galeria para identificar a planta e salvar o resultado localmente.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 12),
+          Text(
+            'Fotos selecionadas: ${_selectedImages.length}/$_maxPhotos',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -277,7 +375,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Dica rapida: foque na folha ou flor, boa luz, sem objetos no fundo e aproxime a camera.',
+                    'Dica rapida: use de 2 a 5 fotos por angulos diferentes para melhorar a precisao.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.w600,
@@ -299,9 +397,9 @@ class _IdentifyPageState extends State<IdentifyPage> {
           OutlinedButton.icon(
             onPressed: _isLoadingImage || _isIdentifying
                 ? null
-                : () => _pickImage(_imagePickerService.pickFromGallery),
+                : _pickMultipleFromGallery,
             icon: const Icon(Icons.photo_library_outlined),
-            label: const Text('Escolher da galeria'),
+            label: const Text('Escolher da galeria (multiplas)'),
           ),
           AppSpacing.sectionGap,
           TextField(
@@ -356,7 +454,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
           ],
           AppSpacing.sectionGap,
           Container(
-            height: 260,
+            height: 280,
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(24),
@@ -364,7 +462,33 @@ class _IdentifyPageState extends State<IdentifyPage> {
             ),
             child: _buildPreview(theme),
           ),
-          const SizedBox(height: 90),
+          const SizedBox(height: 12),
+          if (!hasImage) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoadingImage || _isIdentifying
+                        ? null
+                        : () => _pickImage(_imagePickerService.pickFromCamera),
+                    icon: const Icon(Icons.photo_camera_outlined),
+                    label: const Text('Tirar foto aqui'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoadingImage || _isIdentifying
+                        ? null
+                        : _pickMultipleFromGallery,
+                    icon: const Icon(Icons.add_photo_alternate_outlined),
+                    label: const Text('Adicionar fotos'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          SizedBox(height: MediaQuery.of(context).viewPadding.bottom + 140),
         ],
       ),
     );
@@ -457,14 +581,15 @@ class _IdentifyPageState extends State<IdentifyPage> {
     if (mode == LocationPrivacyMode.approximate) {
       return 'Endereco aproximado: ${location.addressText}\n'
           'Cidade: ${location.city}\n'
-          'Estado: ${location.state}';
+          'Estado: ${location.state}\n'
+          'Precisao estimada: ${location.accuracyMeters.toStringAsFixed(0)} m';
     }
 
     final latitude = location.latitude.toStringAsFixed(6);
     final longitude = location.longitude.toStringAsFixed(6);
-
     return 'Latitude: $latitude\n'
         'Longitude: $longitude\n'
+        'Precisao estimada: ${location.accuracyMeters.toStringAsFixed(0)} m\n'
         'Endereco: ${location.addressText}\n'
         'Cidade: ${location.city}\n'
         'Estado: ${location.state}';
@@ -475,13 +600,13 @@ class _IdentifyPageState extends State<IdentifyPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_selectedImageBytes != null) {
+    if (_selectedImageBytes.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.memory(_selectedImageBytes!, fit: BoxFit.cover),
+            Image.memory(_selectedImageBytes.first, fit: BoxFit.cover),
             Positioned(
               left: 16,
               right: 16,
@@ -494,7 +619,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
-                    _selectedImage?.name ?? 'Imagem selecionada',
+                    '${_selectedImages.length} foto(s) adicionada(s)',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -506,19 +631,64 @@ class _IdentifyPageState extends State<IdentifyPage> {
               ),
             ),
             Positioned(
-              top: 12,
+              left: 12,
               right: 12,
-              child: IconButton.filled(
-                tooltip: 'Remover foto',
-                onPressed: _isIdentifying
-                    ? null
-                    : () {
-                        setState(() {
-                          _selectedImage = null;
-                          _selectedImageBytes = null;
-                        });
-                      },
-                icon: const Icon(Icons.close_rounded),
+              top: 12,
+              child: SizedBox(
+                height: 52,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _selectedImageBytes.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    return Stack(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: index == 0
+                                  ? theme.colorScheme.primary
+                                  : Colors.white54,
+                              width: index == 0 ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(9),
+                            child: Image.memory(
+                              _selectedImageBytes[index],
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: _isIdentifying
+                                ? null
+                                : () => _removeImageAt(index),
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: Colors.black87,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -541,6 +711,13 @@ class _IdentifyPageState extends State<IdentifyPage> {
           Text(
             'Nenhuma foto selecionada ainda.',
             style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Use os botoes abaixo para capturar ou adicionar imagens.',
+            style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),

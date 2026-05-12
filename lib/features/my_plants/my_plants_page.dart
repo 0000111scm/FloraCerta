@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -5,6 +7,7 @@ import '../../core/config/app_routes.dart';
 import '../../core/utils/app_spacing.dart';
 import '../../core/widgets/flora_app_bar.dart';
 import '../../services/app_data_repository.dart';
+import '../identification/models/plant_identification.dart';
 import 'models/plant_status.dart';
 import 'models/user_plant.dart';
 
@@ -42,221 +45,222 @@ class _MyPlantsPageState extends State<MyPlantsPage> {
       body: ValueListenableBuilder<List<UserPlant>>(
         valueListenable: _repository.userPlantsListenable,
         builder: (context, plants, child) {
-          final filtered = plants.where(_matchesFilters).toList();
+          return ValueListenableBuilder<List<PlantIdentification>>(
+            valueListenable: _repository.identificationsListenable,
+            builder: (context, identifications, _) {
+              final filtered = plants.where(_matchesFilters).toList();
+              final identificationById = <String, PlantIdentification>{
+                for (final item in identifications) item.id: item,
+              };
 
-          if (plants.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: AppSpacing.pagePadding,
-                child: Card(
+              if (plants.isEmpty) {
+                return Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(28),
+                    padding: AppSpacing.pagePadding,
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.local_florist_rounded,
+                              size: 56,
+                              color: theme.colorScheme.primary,
+                            ),
+                            AppSpacing.itemGap,
+                            Text(
+                              'Nenhuma planta pessoal cadastrada ainda.',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Adicione uma identificacao em Minhas plantas para acompanhar o desenvolvimento.',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: [
+                  Padding(
+                    padding: AppSpacing.pagePadding,
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.local_florist_rounded,
-                          size: 56,
-                          color: theme.colorScheme.primary,
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            labelText: 'Buscar plantas',
+                            hintText: 'Apelido, especie ou local',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _query.isEmpty
+                                ? null
+                                : IconButton(
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {
+                                        _query = '';
+                                      });
+                                    },
+                                    icon: const Icon(Icons.close),
+                                  ),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _query = value.trim().toLowerCase();
+                            });
+                          },
                         ),
                         AppSpacing.itemGap,
-                        Text(
-                          'Nenhuma planta pessoal cadastrada ainda.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Adicione uma identificacao em Minhas plantas para acompanhar o desenvolvimento.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _StatusFilterChip(
+                                label: 'Todos',
+                                selected: _selectedStatus == null,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedStatus = null;
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              ...PlantStatus.values.map(
+                                (status) => Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: _StatusFilterChip(
+                                    label: status.label,
+                                    selected: _selectedStatus == status,
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedStatus = status;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ),
-            );
-          }
-
-          return Column(
-            children: [
-              Padding(
-                padding: AppSpacing.pagePadding,
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        labelText: 'Buscar plantas',
-                        hintText: 'Apelido, especie ou local',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _query.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _query = '';
-                                  });
-                                },
-                                icon: const Icon(Icons.close),
-                              ),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _query = value.trim().toLowerCase();
-                        });
-                      },
-                    ),
-                    AppSpacing.itemGap,
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _StatusFilterChip(
-                            label: 'Todos',
-                            selected: _selectedStatus == null,
-                            onTap: () {
-                              setState(() {
-                                _selectedStatus = null;
-                              });
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          ...PlantStatus.values.map(
-                            (status) => Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: _StatusFilterChip(
-                                label: status.label,
-                                selected: _selectedStatus == status,
-                                onTap: () {
-                                  setState(() {
-                                    _selectedStatus = status;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (filtered.isEmpty)
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: AppSpacing.pagePadding,
-                      child: Card(
+                  if (filtered.isEmpty)
+                    Expanded(
+                      child: Center(
                         child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.filter_alt_off_rounded,
-                                size: 52,
-                                color: theme.colorScheme.primary,
+                          padding: AppSpacing.pagePadding,
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.filter_alt_off_rounded,
+                                    size: 52,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  AppSpacing.itemGap,
+                                  Text(
+                                    'Nenhuma planta corresponde aos filtros.',
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.titleMedium,
+                                  ),
+                                ],
                               ),
-                              AppSpacing.itemGap,
-                              Text(
-                                'Nenhuma planta corresponde aos filtros.',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.titleMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) => AppSpacing.itemGap,
-                    itemBuilder: (context, index) {
-                      final plant = filtered[index];
-                      return Card(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(24),
-                          onTap: () => context.push(
-                            AppRoutes.myPlantDetail,
-                            extra: plant.id,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 54,
-                                  height: 54,
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.primaryContainer,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Icon(
-                                    Icons.local_florist_rounded,
-                                    color: theme.colorScheme.onPrimaryContainer,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        plant.nickname,
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${plant.popularName} - ${plant.status.label}',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              color: theme
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        plant.locationName,
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                              color: theme
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 18,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ],
                             ),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-            ],
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, _) => AppSpacing.itemGap,
+                        itemBuilder: (context, index) {
+                          final plant = filtered[index];
+                          final photoBytes = plant.identificationId == null
+                              ? null
+                              : identificationById[plant.identificationId]
+                                    ?.photoBytes;
+                          return Card(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(24),
+                              onTap: () => context.push(
+                                AppRoutes.myPlantDetail,
+                                extra: plant.id,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Row(
+                                  children: [
+                                    _PlantThumb(photoBytes: photoBytes),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            plant.nickname,
+                                            style: theme.textTheme.titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${plant.popularName} - ${plant.status.label}',
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            plant.locationName,
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 18,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -412,6 +416,43 @@ class _MyPlantsPageState extends State<MyPlantsPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _PlantThumb extends StatelessWidget {
+  const _PlantThumb({required this.photoBytes});
+
+  final Uint8List? photoBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (photoBytes != null && photoBytes!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: 54,
+          height: 54,
+          child: Image.memory(
+            photoBytes!,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          ),
+        ),
+      );
+    }
+    return Container(
+      width: 54,
+      height: 54,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Icon(
+        Icons.local_florist_rounded,
+        color: theme.colorScheme.onPrimaryContainer,
+      ),
     );
   }
 }

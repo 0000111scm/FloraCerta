@@ -31,11 +31,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _requestStartupPermissions() async {
     final permissions = <Permission>[
-      Permission.notification,
       Permission.camera,
       Permission.locationWhenInUse,
-      Permission.photos,
-      Permission.storage,
+      Permission.notification,
     ];
 
     await permissions.request();
@@ -50,13 +48,24 @@ class _HomePageState extends State<HomePage> {
       body: ListView(
         padding: AppSpacing.pagePadding,
         children: [
+          Text(
+            'Painel',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  theme.colorScheme.primaryContainer,
-                  theme.colorScheme.surface,
+                  theme.brightness == Brightness.dark
+                      ? const Color(0xFF2D9C3B)
+                      : theme.colorScheme.primaryContainer,
+                  theme.brightness == Brightness.dark
+                      ? const Color(0xFF58BD5C)
+                      : theme.colorScheme.surface,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -84,6 +93,20 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           AppSpacing.sectionGap,
+          Text(
+            'Acoes rapidas',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Fluxos principais do FloraCerta',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          AppSpacing.itemGap,
           FeatureCard(
             title: 'Identificar planta',
             subtitle: 'Capture uma foto ou use uma imagem da galeria.',
